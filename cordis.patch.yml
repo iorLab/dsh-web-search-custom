@@ -1,7 +1,8 @@
-# Community bundle patch: insert the DIY web-search provider into the
-# browser roster when a profile lists this package. The row name is the
-# package itself, so the client-modules node half resolves its `dsh.client`
-# declaration and serves /plugins/<name>/client.js.
+# Community bundle patch: insert the Custom web-search provider into the
+# browser roster when a profile lists this package, and select it as the web
+# seam's active search provider.
 - insert:
-    - id: dsh-web-search-diy
-      name: dsh-web-search-diy
+    - id: dsh-web-search-custom
+      name: dsh-web-search-custom
+- override:
+    plugins.web.searchProvider: custom-responses

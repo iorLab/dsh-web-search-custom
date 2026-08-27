@@ -20,7 +20,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { transform } from 'lightningcss'
 
-const ID = 'dsh-web-search-diy'
+const ID = 'dsh-web-search-custom'
 
 // tsdown resolves entry/tsconfig against its build cwd, which becomes this
 // config file's directory when loaded via `-c`. Anchor every path to this file
@@ -42,7 +42,7 @@ const CLIENT_EXTERNALS = new Set([
   '@deepseek-ai/dsh-client-runtime/client',
 ])
 
-const CSS_VIRTUAL_PREFIX = '\0bbg-css:'
+const CSS_VIRTUAL_PREFIX = '\0custom-css:'
 const CSS_VIRTUAL_SUFFIX = '.mjs'
 
 /** Emit one plugin-owned style injector plus an optional CSS Modules export. */

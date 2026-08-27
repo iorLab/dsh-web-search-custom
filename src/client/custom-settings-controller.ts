@@ -3,24 +3,24 @@
  * derives the page snapshot from this plugin's namespace, and serializes edits
  * as path ops through `connection.api.settings.mutate`, fenced by the
  * namespace revision the mirror holds. Same discipline as dsh-ui-settings-yaml.
- * @module @jay/dsh-web-search-diy/client-controller
+ * @module dsh-web-search-custom/client-controller
  */
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
-import { collectDiyConfig, emptyDiyState, isObject } from './diy-settings-state.ts'
-import type { DiyNamespaceView, DiySectionConfig, DiySettingsState } from './diy-settings-state.ts'
+import { collectCustomConfig, emptyCustomState, isObject } from './custom-settings-state.ts'
+import type { CustomNamespaceView, CustomSectionConfig, CustomSettingsState } from './custom-settings-state.ts'
 
 /** One field write: an object-keyed path inside the namespace. */
-export interface BbgFieldWrite {
+export interface CustomFieldWrite {
   kind: 'field'
   path: string[]
   value: unknown
 }
 
 /** A write target this controller accepts. */
-export type DiyWriteTarget = BbgFieldWrite
+export type CustomWriteTarget = CustomFieldWrite
 
 /** The write face the controller needs (a structural subset of `connection.api.settings`). */
 export interface SettingsWriteApi {
@@ -34,14 +34,14 @@ export interface SettingsWriteApi {
 }
 
 /** Build the mutation payload for a field write. */
-function buildWrite(target: DiyWriteTarget): { ns: string; ops: SettingsPathOpView[] } {
-  return { ns: 'web-search-diy', ops: [{ op: 'set', path: target.path, value: target.value }] }
+function buildWrite(target: CustomWriteTarget): { ns: string; ops: SettingsPathOpView[] } {
+  return { ns: 'web-search-custom', ops: [{ op: 'set', path: target.path, value: target.value }] }
 }
 
 /** Follows the shared describe mirror, derives the page snapshot, and serializes edits. */
-export class DiySettingsController {
+export class CustomSettingsController {
   /** uSES-safe state source the section renders from. */
-  readonly store: SnapshotStore<DiySettingsState> = createSnapshotStore<DiySettingsState>(emptyDiyState())
+  readonly store: SnapshotStore<CustomSettingsState> = createSnapshotStore<CustomSettingsState>(emptyCustomState())
 
   private readonly unsubscribe: () => void
 
@@ -70,12 +70,12 @@ export class DiySettingsController {
   }
 
   /**
-   * Write one value back to the `web-search-diy` namespace, fenced by the
+   * Write one value back to the `web-search-custom` namespace, fenced by the
    * latest revision the mirror holds. Resolves when the write settles; the
    * mirror refreshes on the Host document-commit event and republishes.
    * @param target - the field to write.
    */
-  async save(target: DiyWriteTarget): Promise<void> {
+  async save(target: CustomWriteTarget): Promise<void> {
     const { ns, ops } = buildWrite(target)
     const scope = this.describeFace.getSnapshot().view?.namespaces
       .find(candidate => candidate.ns === ns)
@@ -88,7 +88,7 @@ export class DiySettingsController {
   }
 
   /** Commit a whole edited section object as one path write (root set). */
-  async saveConfig(config: Partial<DiySectionConfig>): Promise<void> {
+  async saveConfig(config: Partial<CustomSectionConfig>): Promise<void> {
     // Root-level sets replace the authored layer wholesale; send only keys the
     // author can edit so credential planes outside this slice stay untouched.
     for (const [key, value] of Object.entries(config)) {
@@ -109,10 +109,10 @@ export class DiySettingsController {
     const view = mirrored.view
     if (view === undefined) {
       // No answer yet; the mirror is loading or idle. Keep the loading state.
-      this.store.set(emptyDiyState())
+      this.store.set(emptyCustomState())
       return
     }
-    const projected = collectDiyConfig(view.namespaces as readonly DiyNamespaceView[])
+    const projected = collectCustomConfig(view.namespaces as readonly CustomNamespaceView[])
     this.store.set({
       status: 'ready',
       writable: view.writable,

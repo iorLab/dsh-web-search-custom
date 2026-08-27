@@ -1,9 +1,9 @@
 /**
- * Hermetic tests for the bbg web-search provider: response mapping,
+ * Hermetic tests for the custom web-search provider: response mapping,
  * availability, credential/error paths, the full HTTP flow against a stubbed
  * global fetch (redirect policy asserted), and the settings-driven
  * per-operation projection (enabled switch, live model changes). A live
- * gateway case runs only when BBG_TEST_KEY is exported.
+ * gateway case runs only when CUSTOM_SEARCH_LIVE_KEY is exported.
  *
  * Errors are asserted by `.code`, not `instanceof WebError`: the seam and its
  * providers can load separate copies of `@deepseek-ai/dsh-web`, and identity
@@ -11,8 +11,8 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DiySearchProvider, BBG_PROVIDER_ID } from '../lib/index.js'
-import { mapDiyResponse } from '../lib/provider.js'
+import { CustomSearchProvider, CUSTOM_PROVIDER_ID } from '../lib/index.js'
+import { mapCustomResponse } from '../lib/provider.js'
 
 const BASE = {
   baseURL: 'https://your-gateway.example.com/v1',
@@ -37,8 +37,8 @@ async function withFetch(impl, fn) {
   }
 }
 
-test('mapDiyResponse: dedupes urls, drops url-less sources, keeps content from message item', () => {
-  const result = mapDiyResponse({
+test('mapCustomResponse: dedupes urls, drops url-less sources, keeps content from message item', () => {
+  const result = mapCustomResponse({
     output: [
       { type: 'web_search_call', action: { query: 'q', type: 'search', sources: [
         { type: 'url', url: 'https://a.example/1' },
@@ -55,29 +55,29 @@ test('mapDiyResponse: dedupes urls, drops url-less sources, keeps content from m
   assert.equal(result.truncated, false)
 })
 
-test('mapDiyResponse: empty output yields no sources and no content', () => {
-  const result = mapDiyResponse({ output: [] })
+test('mapCustomResponse: empty output yields no sources and no content', () => {
+  const result = mapCustomResponse({ output: [] })
   assert.deepEqual(result.sources, [])
   assert.equal(result.content, undefined)
   assert.equal(result.truncated, false)
 })
 
-test('mapDiyResponse: message item without text parts omits content', () => {
-  const result = mapDiyResponse({ output: [{ type: 'message', content: [] }] })
+test('mapCustomResponse: message item without text parts omits content', () => {
+  const result = mapCustomResponse({ output: [{ type: 'message', content: [] }] })
   assert.equal(result.content, undefined)
 })
 
 test('available(): literal key or resolver → true; missing credential or bad limit → false', () => {
-  assert.equal(new DiySearchProvider(() => ({ ...BASE, apiKey: 'x' })).available(), true)
-  assert.equal(new DiySearchProvider(() => ({ ...BASE, resolveApiKey: async () => 'x' })).available(), true)
-  assert.equal(new DiySearchProvider(() => BASE).available(), false)
-  assert.equal(new DiySearchProvider(() => ({ ...BASE, apiKey: 'x', maxOutputTokens: 0 })).available(), false)
-  assert.equal(new DiySearchProvider(() => ({ ...BASE, apiKey: 'x', baseURL: 'not a url' })).available(), false)
+  assert.equal(new CustomSearchProvider(() => ({ ...BASE, apiKey: 'x' })).available(), true)
+  assert.equal(new CustomSearchProvider(() => ({ ...BASE, resolveApiKey: async () => 'x' })).available(), true)
+  assert.equal(new CustomSearchProvider(() => BASE).available(), false)
+  assert.equal(new CustomSearchProvider(() => ({ ...BASE, apiKey: 'x', maxOutputTokens: 0 })).available(), false)
+  assert.equal(new CustomSearchProvider(() => ({ ...BASE, apiKey: 'x', baseURL: 'not a url' })).available(), false)
 })
 
 test('available() follows each per-operation projection (settings toggle)', () => {
   let options = { ...BASE, apiKey: 'x' }
-  const provider = new DiySearchProvider(() => options)
+  const provider = new CustomSearchProvider(() => options)
   assert.equal(provider.available(), true)
   // The disabled projection: the plugin hands over unusable placeholder options.
   options = { baseURL: '', model: '', searchContextSize: 'low', maxOutputTokens: 0 }
@@ -89,7 +89,7 @@ test('available() follows each per-operation projection (settings toggle)', () =
 test('search without a credential fails WEB_PROVIDER_CREDENTIAL_MISSING before any dispatch', async () => {
   await withFetch(() => assert.fail('must not dispatch without a key'), async () => {
     await assert.rejects(
-      new DiySearchProvider(() => ({ ...BASE, apiKeyEnv: 'BBG_TEST_KEY' })).search({ query: 'x' }),
+      new CustomSearchProvider(() => ({ ...BASE, apiKeyEnv: 'CUSTOM_SEARCH_LIVE_KEY' })).search({ query: 'x' }),
       (error) => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING',
     )
   })
@@ -104,7 +104,7 @@ test('search posts a native web_search Responses request and maps the result', a
       { type: 'message', content: [{ type: 'output_text', text: 'Found it.' }] },
     ] })
   }, async () => {
-    const result = await new DiySearchProvider(() => ({ ...BASE, apiKey: 'k' })).search({ query: 'hello', maxResults: 3 })
+    const result = await new CustomSearchProvider(() => ({ ...BASE, apiKey: 'k' })).search({ query: 'hello', maxResults: 3 })
     assert.deepEqual(result.sources.map(s => s.url), ['https://r.example/1'])
     assert.equal(result.content, 'Found it.')
   })
@@ -123,7 +123,7 @@ test('options are snapshotted per operation: a change between searches reaches t
     bodies.push(JSON.parse(init.body))
     return okResponse({ output: [{ type: 'web_search_call', action: { sources: [] } }] })
   }, async () => {
-    const provider = new DiySearchProvider(() => options)
+    const provider = new CustomSearchProvider(() => options)
     await provider.search({ query: 'first' })
     options = { ...BASE, apiKey: 'k', model: 'glm-5.3-flash', searchContextSize: 'high' }
     await provider.search({ query: 'second' })
@@ -136,7 +136,7 @@ test('options are snapshotted per operation: a change between searches reaches t
 test('HTTP error surfaces the gateway message as WEB_PROVIDER_ERROR', async () => {
   await withFetch(async () => new Response(JSON.stringify({ error: { message: 'boom' } }), { status: 401 }), async () => {
     await assert.rejects(
-      new DiySearchProvider(() => ({ ...BASE, apiKey: 'k' })).search({ query: 'x' }),
+      new CustomSearchProvider(() => ({ ...BASE, apiKey: 'k' })).search({ query: 'x' }),
       (error) => error.code === 'WEB_PROVIDER_ERROR' && error.message === 'boom',
     )
   })
@@ -147,15 +147,15 @@ test('pre-aborted search fails WEB_ABORTED', async () => {
   controller.abort()
   await withFetch(() => assert.fail('must not dispatch after abort'), async () => {
     await assert.rejects(
-      new DiySearchProvider(() => ({ ...BASE, apiKey: 'k' })).search({ query: 'x' }, controller.signal),
+      new CustomSearchProvider(() => ({ ...BASE, apiKey: 'k' })).search({ query: 'x' }, controller.signal),
       (error) => error.code === 'WEB_ABORTED',
     )
   })
 })
 
-test('live: compiled provider completes a real gateway search', { skip: process.env.BBG_TEST_KEY === undefined }, async () => {
-  const provider = new DiySearchProvider(() => ({ ...BASE, apiKey: process.env.BBG_TEST_KEY }))
-  assert.equal(provider.id, BBG_PROVIDER_ID)
+test('live: compiled provider completes a real gateway search', { skip: process.env.CUSTOM_SEARCH_LIVE_KEY === undefined }, async () => {
+  const provider = new CustomSearchProvider(() => ({ ...BASE, apiKey: process.env.CUSTOM_SEARCH_LIVE_KEY }))
+  assert.equal(provider.id, CUSTOM_PROVIDER_ID)
   const result = await provider.search({ query: 'latest AI news today', maxResults: 5 })
   assert.ok(result.sources.length > 0)
   assert.ok(result.sources.every(s => URL.canParse(s.url)))

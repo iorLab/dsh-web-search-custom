@@ -1,50 +1,76 @@
 /**
- * The "DIY Web Search" settings page: an enable switch plus the gateway
+ * The "Custom Web Search" settings page: an enable switch plus the gateway
  * route fields, laid out as native-style two-column rows (label + description
  * left, control right). State arrives through the slot outlet's synthesized
- * `useDiySettings` selector hook (bound from the inject face's
- * `hooks.diySettings` store); edits write one field back through the
+ * `useCustomSettings` selector hook (bound from the inject face's
+ * `hooks.customSettings` store); edits write one field back through the
  * controller, so the describe mirror's refresh republishes the committed value.
- * @module dsh-web-search-diy/client-section
+ * @module dsh-web-search-custom/client-section
  */
 
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import styles from './settings-diy.module.css'
-import type { DiySettingsController, DiyWriteTarget } from './diy-settings-controller.ts'
-import type { DiySettingsKey, DiySettingsState } from './diy-settings-state.ts'
+import styles from './settings-custom.module.css'
+import { Combo } from './Combo.tsx'
+import type { CustomSettingsController, CustomWriteTarget } from './custom-settings-controller.ts'
+import type { CustomSettingsKey, CustomSettingsState } from './custom-settings-state.ts'
 
-/** Injected dependencies of {@link SettingsDiySection} (slot `inject`). */
-export interface SettingsDiySectionInjected {
+/** Model presets for the gateway-route combobox. */
+const MODEL_PRESETS = [
+  'deepseek-v4-flash',
+  'deepseek-v4-pro',
+  'deepseek-v4-flash-vision-exp',
+  'gpt-5.6-luna',
+  'gpt-5.6-terra',
+  'claude-sonnet-5',
+  'gemini-3.7-flash',
+  'gemini-3.5-flash-lite',
+  'grok-4.6',
+  'glm-5.3',
+  'kimi-k3',
+  'qwen3.8-max',
+] as const
+
+/** Base-URL presets; the shipped default is the single entry for now. */
+const BASE_URL_PRESETS = [
+  'https://your-gateway.example.com/v1',
+] as const
+
+/** Schema defaults mirrored on the client so empty config still renders values. */
+const DEFAULT_MODEL = 'deepseek-v4-flash'
+const DEFAULT_BASE_URL = 'https://your-gateway.example.com/v1'
+
+/** Injected dependencies of {@link SettingsCustomSection} (slot `inject`). */
+export interface SettingsCustomSectionInjected {
   /** The page controller (mirror-following + write face; the component never loads it). */
-  controller: DiySettingsController
+  controller: CustomSettingsController
   hooks: {
-    /** Page snapshot bound by the UI renderer as useDiySettings. */
-    diySettings: SnapshotStore<DiySettingsState>
+    /** Page snapshot bound by the UI renderer as useCustomSettings. */
+    customSettings: SnapshotStore<CustomSettingsState>
   }
   /** Section copy. */
-  t: (key: DiySettingsKey) => string
+  t: (key: CustomSettingsKey) => string
 }
 
 /** Props delivered by the slot outlet: the inject face spread flat. */
-export type SettingsDiySectionProps = Partial<InjectFace<SettingsDiySectionInjected>>
+export type SettingsCustomSectionProps = Partial<InjectFace<SettingsCustomSectionInjected>>
 
 /**
  * Render nothing until the shell injects dependencies — mirrors the
  * settings-yaml section's contract so unrelated pages stay unaffected.
  */
-export function SettingsDiySection(props: SettingsDiySectionProps) {
-  const { useDiySettings, t } = props
-  if (useDiySettings === undefined || t === undefined) return null
-  return <Page useDiySettings={useDiySettings} t={t} controller={props.controller} />
+export function SettingsCustomSection(props: SettingsCustomSectionProps) {
+  const { useCustomSettings, t } = props
+  if (useCustomSettings === undefined || t === undefined) return null
+  return <Page useCustomSettings={useCustomSettings} t={t} controller={props.controller} />
 }
 
-function Page({ useDiySettings, t, controller }: {
-  useDiySettings: NonNullable<SettingsDiySectionProps['useDiySettings']>
-  t: (key: DiySettingsKey) => string
-  controller?: DiySettingsController
+function Page({ useCustomSettings, t, controller }: {
+  useCustomSettings: NonNullable<SettingsCustomSectionProps['useCustomSettings']>
+  t: (key: CustomSettingsKey) => string
+  controller?: CustomSettingsController
 }) {
-  const state = useDiySettings(snapshot => snapshot)
+  const state = useCustomSettings(snapshot => snapshot)
   if (state.status !== 'ready' || controller === undefined) return null
 
   const config = state.config
@@ -70,26 +96,28 @@ function Page({ useDiySettings, t, controller }: {
           </span>
         </Row>
         <Row label={t('model')}>
-          <input
-            className={styles.control}
-            type='text'
-            value={config.model ?? ''}
-            placeholder={t('modelPlaceholder')}
+          <Combo
+            value={config.model ?? DEFAULT_MODEL}
+            presets={MODEL_PRESETS}
+            customLabel={t('modelCustom')}
+            placeholder={DEFAULT_MODEL}
             disabled={!state.writable}
-            onChange={(event) => {
-              void write(controller, () => ({ kind: 'field', path: ['model'], value: event.target.value }))
+            ariaLabel={t('model')}
+            onChange={(next) => {
+              void write(controller, () => ({ kind: 'field', path: ['model'], value: next }))
             }}
           />
         </Row>
         <Row label={t('baseURL')}>
-          <input
-            className={styles.control}
-            type='text'
-            value={config.baseURL ?? ''}
-            placeholder={t('baseURLPlaceholder')}
+          <Combo
+            value={config.baseURL ?? DEFAULT_BASE_URL}
+            presets={BASE_URL_PRESETS}
+            customLabel={t('baseURLCustom')}
+            placeholder={DEFAULT_BASE_URL}
             disabled={!state.writable}
-            onChange={(event) => {
-              void write(controller, () => ({ kind: 'field', path: ['baseURL'], value: event.target.value }))
+            ariaLabel={t('baseURL')}
+            onChange={(next) => {
+              void write(controller, () => ({ kind: 'field', path: ['baseURL'], value: next }))
             }}
           />
         </Row>
@@ -117,7 +145,7 @@ function Page({ useDiySettings, t, controller }: {
             type='number'
             min={1}
             max={16384}
-            value={config.maxOutputTokens ?? ''}
+            value={config.maxOutputTokens ?? 1024}
             disabled={!state.writable}
             onChange={(event) => {
               const parsed = Number(event.target.value)
@@ -150,7 +178,7 @@ function Row({ label, hint, children }: {
 }
 
 /** Fire one field write; a rejected write leaves the last committed value on screen. */
-async function write(controller: DiySettingsController, target: () => DiyWriteTarget): Promise<void> {
+async function write(controller: CustomSettingsController, target: () => CustomWriteTarget): Promise<void> {
   try {
     await controller.save(target())
   } catch {

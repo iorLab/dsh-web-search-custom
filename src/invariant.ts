@@ -1,16 +1,16 @@
 /**
- * Package-owned invariant companion for `@jay/dsh-web-search-diy`.
- * @module @jay/dsh-web-search-diy/invariant
+ * Package-owned invariant companion for `dsh-web-search-custom`.
+ * @module dsh-web-search-custom/invariant
  */
 
 /* jscpd:ignore-start */
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
-const PACKAGE_NAME = '@jay/dsh-web-search-diy'
+const PACKAGE_NAME = 'dsh-web-search-custom'
 
 /** Cordis companion plugin name. */
-export const name = 'web-search-diy-invariant'
+export const name = 'web-search-custom-invariant'
 /** Service required before the companion can reserve package ownership. */
 export const inject = ['invariants']
 

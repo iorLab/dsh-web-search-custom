@@ -1,18 +1,18 @@
 /**
- * Register a bbg-gateway-backed provider in `ctx.web`. It calls the gateway's
+ * Register a gateway-backed provider in `ctx.web`. It calls the gateway's
  * OpenAI-compatible Responses API with the native `web_search` tool, which the
  * gateway executes server-side, so no dedicated search API or third-party
  * search key is needed. The provider resolves the same `BBG_AI_MIX_API_KEY`
  * credential reference the chat LLM adapter uses, at each search.
  *
- * A settings section (`web-search-diy`) carries an `enabled` switch and the
+ * A settings section (`web-search-custom`) carries an `enabled` switch and the
  * gateway route (model, base URL, context size, token bound). The section is
  * installed through `installSettingsSection` and projected per search, so a
  * committed change — including toggling `enabled` off/on — reaches the next
  * search without a restart. While disabled the provider reports unavailable;
  * if it was the seam's selected provider the tool surfaces that as a search
  * failure rather than silently falling back.
- * @module @jay/dsh-web-search-diy
+ * @module dsh-web-search-custom
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -21,26 +21,28 @@ import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-web'
 import {
-  DiySearchProvider,
-  BBG_DEFAULT_BASE_URL,
-  BBG_DEFAULT_MAX_OUTPUT_TOKENS,
-  BBG_DEFAULT_MODEL,
-  BBG_DEFAULT_SEARCH_CONTEXT_SIZE,
+  CustomSearchProvider,
+  DEFAULT_BASE_URL,
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_SEARCH_CONTEXT_SIZE,
 } from './provider.js'
-import type { DiySearchProviderOptions } from './provider.js'
+import type { CustomSearchProviderOptions } from './provider.js'
 
 export {
-  BBG_DEFAULT_BASE_URL,
-  BBG_DEFAULT_MAX_OUTPUT_TOKENS,
-  BBG_DEFAULT_MODEL,
-  BBG_DEFAULT_SEARCH_CONTEXT_SIZE,
-  BBG_PROVIDER_ID,
-  DiySearchProvider,
+  DEFAULT_BASE_URL,
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_SEARCH_CONTEXT_SIZE,
+  CUSTOM_PROVIDER_ID,
+  Custom_BASE_URL_PRESETS,
+  Custom_MODEL_PRESETS,
+  CustomSearchProvider,
 } from './provider.js'
-export type { DiySearchProviderOptions } from './provider.js'
+export type { CustomSearchProviderOptions } from './provider.js'
 
 /** Cordis plugin name used by loader diagnostics. */
-export const name = 'web-search-diy'
+export const name = 'web-search-custom'
 
 /** The web seam this provider registers into. */
 export const inject = ['web']
@@ -59,7 +61,7 @@ export interface Config {
   apiKey?: string
   /** Credential reference resolved for each search; defaults to `BBG_AI_MIX_API_KEY`. */
   apiKeyEnv?: string
-  /** OpenAI-compatible endpoint base; `/responses` is appended. */
+  /** OpenAI-compatible endpoint base; `/responses` is appended. Defaults to the shipped gateway. */
   baseURL?: string
   /** Gateway model name. Defaults to `deepseek-v4-flash`. */
   model?: string
@@ -73,17 +75,17 @@ export const Config: z<Config> = z.object({
   enabled: z.boolean().default(true),
   apiKey: z.string().role('secret'),
   apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
-  baseURL: z.string(),
+  baseURL: z.string().default(DEFAULT_BASE_URL),
   // Defaults are declared here rather than only at the use site: a
   // configuration surface renders the resolved section, so a default the
   // schema does not carry reads there as no value at all.
-  model: z.string().default(BBG_DEFAULT_MODEL),
+  model: z.string().default(DEFAULT_MODEL),
   searchContextSize: z.union(['low', 'medium', 'high'] as const).default('low'),
-  maxOutputTokens: z.number().step(1).min(1).max(16384).default(BBG_DEFAULT_MAX_OUTPUT_TOKENS),
+  maxOutputTokens: z.number().step(1).min(1).max(16384).default(DEFAULT_MAX_OUTPUT_TOKENS),
 })
 
 /** Settings namespace carrying this provider's switch and gateway route. */
-export const WEB_SEARCH_BBG_SETTINGS_NAMESPACE = settingsNamespace('web-search-diy')
+export const WEB_SEARCH_CUSTOM_SETTINGS_NAMESPACE = settingsNamespace('web-search-custom')
 
 /**
  * Project one resolved section into the options the provider serves its next
@@ -92,7 +94,7 @@ export const WEB_SEARCH_BBG_SETTINGS_NAMESPACE = settingsNamespace('web-search-d
  * @param config - the currently authoritative section.
  * @returns options for one search.
  */
-function resolveOptions(ctx: Context, config: Config): DiySearchProviderOptions {
+function resolveOptions(ctx: Context, config: Config): CustomSearchProviderOptions {
   const apiKeyEnv = (config.apiKeyEnv ?? DEFAULT_API_KEY_ENV) as CredentialRef
   return {
     ...config.apiKey !== undefined && config.apiKey.length > 0 ? { apiKey: config.apiKey } : {},
@@ -104,17 +106,17 @@ function resolveOptions(ctx: Context, config: Config): DiySearchProviderOptions 
       return ambient !== undefined && ambient.length > 0 ? ambient : undefined
     },
     apiKeyEnv,
-    baseURL: config.baseURL ?? BBG_DEFAULT_BASE_URL,
-    model: config.model ?? BBG_DEFAULT_MODEL,
-    searchContextSize: config.searchContextSize ?? BBG_DEFAULT_SEARCH_CONTEXT_SIZE,
-    maxOutputTokens: config.maxOutputTokens ?? BBG_DEFAULT_MAX_OUTPUT_TOKENS,
+    baseURL: config.baseURL ?? DEFAULT_BASE_URL,
+    model: config.model ?? DEFAULT_MODEL,
+    searchContextSize: config.searchContextSize ?? DEFAULT_SEARCH_CONTEXT_SIZE,
+    maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   }
 }
 
-/** Register the bbg search provider with `ctx.web`, following its settings section. */
+/** Register the custom search provider with `ctx.web`, following its settings section. */
 export function apply(ctx: Context, config: Config = {}): void {
   let current: () => Config = () => config
-  installSettingsSection(ctx, WEB_SEARCH_BBG_SETTINGS_NAMESPACE, Config, config, {
+  installSettingsSection(ctx, WEB_SEARCH_CUSTOM_SETTINGS_NAMESPACE, Config, config, {
     setSource: (source) => {
       current = source
     },
@@ -123,7 +125,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     // needs no re-registration.
     onChange: () => {},
   })
-  ctx.web.registerSearchProvider(new DiySearchProvider(() => {
+  ctx.web.registerSearchProvider(new CustomSearchProvider(() => {
     const section = current()
     // The enabled gate rides the per-operation projection: when off, report
     // unavailable; when on, project the real options. `available()` runs on

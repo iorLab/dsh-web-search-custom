@@ -1,4 +1,4 @@
-/* DIY Web Search settings section — matches the native DSH dark settings
+/* Custom Web Search settings section — matches the native DSH dark settings
  * modal: charcoal surfaces, low-contrast borders, restrained blue accent,
  * pill corners. Two-column rows (label + description left, control right). */
 
@@ -163,4 +163,45 @@
   margin: 10px 0 0;
   color: var(--dsh-text-placeholder, #858588);
   font-size: 12px;
+}
+
+/* Editable combobox: text input + preset chevron side by side. */
+.combo {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.combo .control {
+  padding-right: 34px;
+}
+
+/* Visible chevron button: a native <select> stretched over the input's right
+   edge — its own text is transparent, and an inline-SVG chevron paints the
+   affordance so users see (and click) an actual dropdown control. */
+.comboChevron {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 30px;
+  height: 100%;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 8px 8px 0;
+  color: transparent;
+  cursor: pointer;
+  appearance: none;
+  background-color: rgba(255, 255, 255, 0.04);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23999da5' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.comboChevron:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+}
+
+.comboChevron:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
