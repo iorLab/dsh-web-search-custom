@@ -1,7 +1,7 @@
 {
   "name": "dsh-web-search-custom",
-  "version": "0.3.0",
-  "description": "WebSearchProvider for the configured gateway: calls its OpenAI-compatible /v1/responses endpoint with the native web_search tool, plus a settings page (enable switch, gateway model/endpoint) under DSH 设置 → Custom Web Search.",
+  "version": "0.3.1",
+  "description": "WebSearchProvider for the configured gateway: calls its OpenAI-compatible /v1/responses endpoint with the native web_search tool, plus a settings page (enable switch, gateway model/endpoint) under DSH \u8bbe\u7f6e \u2192 Custom Web Search.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
