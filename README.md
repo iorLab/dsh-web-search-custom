@@ -15,13 +15,24 @@ A pluggable [DeepSeek Harness (DSH)](https://github.com/deepseek-ai) **WebSearch
 
 ## Install
 
+Requires a [DeepSeek Harness](https://github.com/deepseek-ai) installation with a profile (e.g. `~/.dsh/profiles/web`). No npm registry release yet — install straight from the git checkout:
+
 ```bash
-corepack pnpm pack
-# in your profile directory (~/.dsh/profiles/<name>):
+git clone https://github.com/iorLab/dsh-web-search-custom.git
+cd dsh-web-search-custom
+corepack pnpm install
+corepack pnpm run build        # emits lib/
+corepack pnpm pack             # produces dsh-web-search-custom-<version>.tgz
+```
+
+Then wire it into your profile (replace `web` with your profile name):
+
+```bash
+cd ~/.dsh/profiles/web
 corepack pnpm add /path/to/dsh-web-search-custom-<version>.tgz
 ```
 
-Add the package to `package.json`'s `dsh.profile.bundles`, and point the search provider at it in `cordis.patch.yml`:
+That is the whole setup: the package ships its own bundle patch, so listing it in the profile's `dependencies` mounts the plugin **and** selects it as the active search provider (`plugins.web.searchProvider: custom-responses`) automatically after a DSH restart. If you would rather keep provider selection explicit, delete the `- override:` block from `node_modules/dsh-web-search-custom/cordis.patch.yml` and add this to your profile's own `cordis.patch.yml` instead:
 
 ```yaml
 - id: web
@@ -30,6 +41,14 @@ Add the package to `package.json`'s `dsh.profile.bundles`, and point the search 
 ```
 
 > Do **not** also `- insert` the same package: bundles already mount it, and a double mount fails with `WEB_DUPLICATE_PROVIDER`.
+
+Finish by storing your gateway API key so the credential resolver finds it at search time — either export the env var named by `apiKeyEnv` (default `BBG_AI_MIX_API_KEY`) before launching DSH, or set it through DSH's credential service:
+
+```bash
+export BBG_AI_MIX_API_KEY="<your-key>"
+```
+
+Switch back to DeepSeek's official search any time with `searchProvider: deepseek-official`.
 
 ## Build & test
 
@@ -45,7 +64,7 @@ corepack pnpm test        # node --test
 | --- | --- | --- |
 | enabled | `true` | Turning off makes the provider report unavailable |
 | model | `deepseek-v4-flash` | Any model id the gateway serves |
-| baseURL | *(gateway endpoint)* | OpenAI-compatible Responses root |
+| baseURL | *(shipped gateway URL)* | Any OpenAI-compatible Responses root; editable dropdown + free input in the UI |
 | searchContextSize | `low` | `low` / `medium` / `high` |
 | maxOutputTokens | `1024` | 1–16384 |
 | apiKeyEnv | `BBG_AI_MIX_API_KEY` | Env var name resolved through DSH credentials |
