@@ -2,6 +2,8 @@
 
 # dsh-web-search-custom
 
+[English](README.md) | [中文](README.zh.md)
+
 A pluggable [DeepSeek Harness (DSH)](https://github.com/deepseek-ai) **WebSearchProvider** plugin with a native-feeling settings page. It calls any OpenAI-compatible **Responses API** gateway (`/v1/responses`) and lets the gateway execute the **native `web_search` tool** server-side, then maps the results back into DSH's search contract.
 
 原名 `@jay/dsh-web-search-bbg` → `dsh-web-search-diy`（0.2.0）→ `dsh-web-search-custom`（0.3.0）。
